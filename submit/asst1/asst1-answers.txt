@@ -1,0 +1,234 @@
+Assignment 1 Submission
+
+### Step 4. 1:
+
+joshuawu@DESKTOP-G6TM2MO:~/os161/root$ sys161 kernel
+sys161: System/161 release 2.0.3, compiled Sep 14 2023 14:23:22
+
+OS/161 base system version 1.99.08
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College. All rights reserved
+
+Put-your-group-name-here's system version 0 (DUMBVM #1)
+
+292k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lambus0
+random0 at lrandom0
+lhd0 at lamebus0
+lhd1 at lamebus0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel [? for menu]:
+
+
+### Step 4.2:
+
+joshuawu@DESKTOP-G6TM2MO:~/os161/src/submit/asst1$ git log
+commit ed2469b2f19421307d84bd90a43f6e63ec267626 (HEAD -> master, tag: asst1-start, origin/master)
+Author: Joshua Wu <joshua.wu2009@gmail.com>
+Date:   Thu Sep 14 10:48:30 2023 -0700
+  
+	Initial commit of os161 for CPEN331
+
+joshuawu@DESKTOP-G6TM2MO:~/os161/src$ git tag
+asst1-start
+
+### Q1 ###
+It depends on what kind of trap gets executed. If its a utlb exception, the first line is on 69.  If it's a general exception, it's on 87. See the lines on the file in kern/arch/mips/locore/exception-mips1.s.
+
+Since the handler for utlb is not implemented yet, both will handle control to common_exception. common_exception prepares a trap frame and calls mips_trap(), which will then handle the trap depending on it's trap type. 
+
+The main difference between trap and interrupt is that the trap is caused by the current process's operations, while interrupts are caused by other processes running concurrently. So the interrupt will behave the same as a trap.
+
+
+### Q2 ###
+The code in os161 that invokes the system call which ultimately leads to traps is found in os161/src/kern/arch/mips/syscall/syscall.c on line 79. The function that calls this syscall is defined on line 84 of ~/os161/src/userland/lib/libc/arch/mips/syscalls-mips.S
+
+### Q3 ###
+Executable files in common/libc will be shared by the user and kernel while userland/lib/lic contains the executable fields that the user can execute. We have both contexts so that the configuration of the OS/161 distribution and build system does not impact the different kind of configuration of the operating system
+
+### Q4 ###
+The configure script configures any environment setup such as environment variables and library dependencies. The configuration will be invalidated if we change operating systems, which will require a rerun of the script.
+
+### Q5 ###
+Examples include:
+- trap handling
+- registers usage and purposes 
+- physical memory space
+
+It is important to maintain separation since we want to preserve modularity, i.e. we can swap out different files according to the need of each oeprating rather than creating a single file for each OS.
+
+### Q6 ###
+Each trapframe is 37 words. See os161/src/kern/arch/mips/include/trapframe.h as there are 37 uint32_t in the trapeframe struct. It's this long as it needs to be stored on the stack upon entry to the exception handler.
+
+### Q7 ###
+The script should be rerun after we add new build options, source files, or modify the kernel configuration
+
+### Q8 ###
+bmake depend should be runned after we rerun the above config script (as in the previous question)
+
+### Q9 ###
+We should run bmake or bmake install after question 7 and question 8 have been run, so that all changes to the source file/headers files/build options/configs have been compiled by bmake and copied to the correct place with bmake install in the os161 root directory. After this as been compiled, we can run sys161 DUMBVM with the updated kernel changes.
+
+### Q10 ###
+One can implement a function int hello_world(int nargs, char **args) in os161/src/kern/main/menu.c, and add an alias entry in the cmdtable struct in the form {"helloworld", hello_world"} 
+
+### Q11 ###
+OS161 runs on SYS161 which is a simulator, so it doesn't have access to any standard utilities on my laptop
+
+### Q12 ###
+The C runtime function in /os161/src/userland/lib/crt0/mips/crt0.S will save the return value in the register s0 so that the return value is kept. It is also saved in a0 delay slot so it is the argument to the exit.
+
+### Q13 ###
+To add a new system call I would need to modify/add code in:
+- os161/src/kern/syscall and create a new file containing our sys_newFunctionCall()
+- Then in os161/src/kern/arch/mips/syscall/syscall.S, add a new case statement for the sys_newFunctionCall to handle the case in the case statement
+- In os161/src/kern/include/kern/syscall.h, we add the call number for our new syscall function
+- In os161/src/kern/includ/syscall.h, we add the function protoype
+
+Based on my answer from q7-9
+- Q7. we rerun kern/conf/config script if we have any changes to the build options/source files/kernel configs
+- Q8. we rerun bmake depend 
+- Q9. we rerun bmake and bmake install to get the new version of the kernel copied into os161/root. Then we can boot the new version of the kernel with the new syscall function
+
+### Q14 ###
+The first function that executes when OS161 is started i __start() in arch/sys161/main/start.S on line 54
+
+GDB output:
+(gdb) db
+__start () at ../../arch/sys161/main/start.S:54
+54         addiu sp, sp, -24
+(gdb)
+
+### Q15 ###
+The very first assembly instruction is addiu sp, sp -24 as seen above
+
+### Q16 ###
+(gdb) b kmain 
+Breakpoint 1 at 0x800139e4: file ../../main/main.c, line 211. 
+(gdb) b menu            
+Breakpoint 2 at 0x80014a0c: file ../../main/menu.c, line 697.                                   
+(gdb) info breakpoints                                                       
+Num     Type           Disp Enb Address    What                          
+1       breakpoint     keep y   0x800139e4 in kmain at ../../main/main.c:211                        
+2       breakpoint     keep y   0x80014a0c in menu at ../../main/menu.c:697
+
+### Q17 ###
+Before invoking kmain, the __start() function will create space on the stack to store arguments, round up the next page boundary, copy the exception handler code into the first page of memory, flush out the instruction cache, initialize the TLB, etc. Once the hardware has been set up, we jump to kernel main and boot up.
+
+### Q18 ###
+jal kmain will jump to our kmain function
+
+In /arch/sys161/main/start.S
+211        /*                                                                                                      
+212         * We're all set up!                                                                                    
+213         * Fetch the copy of the bootstring as the argument, and call main.                                    
+214         */                                                                                                     
+215        jal kmain                                                                                               
+216        move a0, s0                  /* in delay slot */
+
+### Q19 ###
+Breakpoint 1, kmain (arguments=0x80035c20 "") at ../../main/main.c:211
+211             boot();
+(gdb) s
+boot () at ../../main/main.c:99
+99              kprintf("\n");
+(gdb) n
+100             kprintf("OS/161 base system version %s\n", BASE_VERSION);
+(gdb)
+101             kprintf("%s", harvard_copyright);
+(gdb)
+102             kprintf("\n");
+(gdb)
+104             kprintf("Put-your-group-name-here's system version %s (%s #%d)\n",
+(gdb)
+106             kprintf("\n");
+(gdb)
+109             ram_bootstrap();
+(gdb)
+110             proc_bootstrap();
+(gdb)
+111             thread_bootstrap();
+(gdb)
+112             hardclock_bootstrap();
+(gdb)
+113             vfs_bootstrap();
+(gdb)
+114             kheap_nextgeneration();
+(gdb)
+117             kprintf("Device probe...\n");
+(gdb)
+118             KASSERT(curthread->t_curspl > 0);
+(gdb)
+119             mainbus_bootstrap();
+(gdb)
+120             KASSERT(curthread->t_curspl == 0);
+(gdb)
+122             pseudoconfig();
+(gdb)
+123             kprintf("\n");
+(gdb)
+124             kheap_nextgeneration();
+(gdb)
+127             vm_bootstrap();
+(gdb)
+128             kprintf_bootstrap();
+(gdb)
+129             thread_start_cpus();
+(gdb)
+132             vfs_setbootfs("emu0");
+(gdb)
+134             kheap_nextgeneration();
+(gdb)
+141     }
+
+### Q20 ###
+Breakpoint 1, thread_bootstrap () at ../../thread/thread.c:357
+357             cpuarray_init(&allcpus);
+(gdb) p *bootcpu
+Cannot access memory at address 0x80000
+
+### Q21 ###
+368             bootthread = bootcpu->c_curthread;
+(gdb) p *bootcpu
+$1 = {c_self = 0x8003af00, c_number = 0, c_hardware_number = 0, c_curthread = 0x8003bf80, c_zombies = {
+    tl_head = {tln_prev = 0x0, tln_next = 0x8003af1c, tln_self = 0x0}, tl_tail = {tln_prev = 0x8003af10,
+      tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, c_hardclocks = 0, c_spinlocks = 0,
+  c_isidle = false, c_runqueue = {tl_head = {tln_prev = 0x0, tln_next = 0x8003af44, tln_self = 0x0},
+    tl_tail = {tln_prev = 0x8003af38, tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, c_runqueue_lock = {
+    splk_lock = 0, splk_holder = 0x0}, c_ipi_pending = 0, c_shootdown = {{
+      ts_placeholder = 0} <repeats 16 times>}, c_numshootdown = 0, c_ipi_lock = {splk_lock = 0,
+   splk_holder = 0x0}}
+
+### Q22 ###
+(gdb) b kmain
+Breakpoint 1 at 0x800139e4: file ../../main/main.c, line 211.
+(gdb) c
+Continuing.
+
+Breakpoint 1, kmain (arguments=0x80035c20 "") at ../../main/main.c:211
+211             boot();
+(gdb) cpuarray allcpus
+0 cpus
+
+### Q23 ###
+(gdb) cpuarray allcpus
+1 cpus
+cpu 0:
+$1 = {c_self = 0x8003af00, c_number = 0, c_hardware_number = 0, c_curthread = 0x8003bf80, c_zombies = {
+    tl_head = {tln_prev = 0x0, tln_next = 0x8003af1c, tln_self = 0x0}, tl_tail = {tln_prev = 0x8003af10,
+      tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, c_hardclocks = 1, c_spinlocks = 0,
+  c_isidle = false, c_runqueue = {tl_head = {tln_prev = 0x0, tln_next = 0x8003af44, tln_self = 0x0},
+    tl_tail = {tln_prev = 0x8003af38, tln_next = 0x0, tln_self = 0x0}, tl_count = 0}, c_runqueue_lock = {
+    splk_lock = 0, splk_holder = 0x0}, c_ipi_pending = 0, c_shootdown = {{
+      ts_placeholder = 0} <repeats 16 times>}, c_numshootdown = 0, c_ipi_lock = {splk_lock = 0,
+    splk_holder = 0x0}}

@@ -1,0 +1,4 @@
+build/*
+cscope*
+defs.mk
+kern/compile/*

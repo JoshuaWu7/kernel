@@ -1,0 +1,48 @@
+### Q1 ###
+When we call thread_exit(), the current thread is exited. The parts of the thread structure that we won't need to run will be cleaned. The rest of the thread will need to wait until thread_destroy is called from exorcise.
+
+Steps:
+1. proc_remthread will detach the current thread, then we check if the detachement was successful
+2. thread_checkstack will check for any overfill behaviour
+3. then turn off all interrupts current process
+4. thread_switch puts the current thread into a zombie state, then choose another thread to run on the current process
+5. call kernel_panic if the above fails
+
+When a thread sleeps through wchan_sleep, we add the thread to the list in the wait channel and unlocks the same thread. A couple assertions are made:
+1. we are not in interrupt handler
+2. check we are holding the spinlock upon awakening
+3. only 1 spinlock is being held
+4. current thread is being put in a queue to be reran, and the spinlock is then released
+5. release the spinlock if the above fails
+
+### Q2 ###
+thread_switch handles the context switch, then it will call switchframe_switch to do the switch.
+
+### Q3 ###
+S_READY: the thread is ready to start executing once the scheduler assigns it to a cpu
+S_RUN: the thread is currently executing on a cpu
+S_SLEEP: the thread is sleeping, so it's blocked from executing anything
+S_ZOMBIE: the thread is exited but not yet deleted
+
+### Q4 ###
+When the interrupt is turned off, it means that the thread cannot be interrupted. This is accomplished by calling splhigh(). It's important to turn off interrupts before we do a thread_switch so that processes can finish what it is doing and does not break during execution. We also want to prevent deadlocks from happening to make sure usage of resource is complete and can be free for other processes. This is done by setting the interrupt priority level to high. 
+
+### Q5 ###
+A thread will call wchan_wakeone where it will get the head thread from the wait channel then make that thread runnable by calling thread_make_runnable. When we call thread_make_runnable, we aquire the c_runqueue_lock of the target thread. Once this lock as been aquired, we put the target thread state in S_READY.
+
+The sleeping thread gets to run again when it gets placed into the run queue.
+
+### Q6 ###
+thread_switch (function that grabs the next thread to run), threadlist_remhead (the helper function that actually gets the next thread to run)
+
+### Q7 ###
+threadlist_switch will select the head from curcpu->c_runqueue to become the next thread to run
+
+### Q8 ###
+The hardware timer makes sure threads have equal amount of time for scheduling. The function that will implement this is hardclock()
+
+### Q9 ###
+In the P function of a semaphore, if the semaphore count is zero, we put the current thread to sleep with wchan_sleep. In the V function of a semaphore, we wake the first thread in the semaphore wait channel and make that thread runnable with wchan_wakeone.
+
+### Q10 ###
+Before a thread goes to wleep on a wait channel (wchan_sleep), it acquires the spinlock. This lock is released just after the current thread has been added to wc_threads (the internal queue in wchan). So when another thread wants to wake up the sleeping thread, it must acquire the same spinlock. Since the spinlock is still held until we know for sure that the thread has been added into the internal queue, this ensures that a thread cannot be added to the queue after a wchan_wake signal has been called. Therefore, we ensure that that all wakeup calls are never missed. 
